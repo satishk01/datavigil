@@ -1,0 +1,38 @@
+# Core
+pandas>=2.0
+numpy>=1.24
+sqlalchemy>=2.0
+scikit-learn>=1.3
+scipy>=1.10
+
+# File formats
+openpyxl>=3.1          # Excel
+pyarrow>=14.0          # Parquet
+
+# API / web
+fastapi>=0.110
+uvicorn[standard]>=0.27
+jinja2>=3.1
+python-multipart>=0.0.9
+pydantic>=2.5
+
+# LLM
+requests>=2.31
+# boto3>=1.34           # optional: AWS Bedrock provider + Aurora IAM auth
+# mcp>=1.0              # optional: Aurora via AWS MCP (Data API / pgwire)
+# awslabs.postgres-mcp-server>=1.2   # optional: the MCP server process itself
+
+# Reports (DOCX / PDF export)
+python-docx>=1.1
+reportlab>=4.0
+
+# CLI / config
+typer>=0.12
+pyyaml>=6.0
+
+# DB drivers (install the ones you need)
+psycopg2-binary>=2.9   # PostgreSQL
+pymysql>=1.1           # MySQL
+# pyodbc>=5.0          # SQL Server (needs system ODBC driver)
+# oracledb>=2.0        # Oracle
+# snowflake-sqlalchemy # Snowflake

@@ -1,0 +1,8 @@
+{"customer_id": 101, "first_name": "Asha", "last_name": "Rao", "email": "asha.rao@example.com", "segment": "Gold"}
+{"customer_id": 102, "first_name": "Biju", "last_name": "Mathew", "email": "biju.mathew@example.com", "segment": "Silver"}
+{"customer_id": 103, "first_name": "Cara", "last_name": "Diaz", "email": "cara.diaz@example.com", "segment": "Gold"}
+{"customer_id": 104, "first_name": "Dev", "last_name": "Patel", "email": "dev.patel@example.com", "segment": "Bronze"}
+{"customer_id": 105, "first_name": "Elena", "last_name": "Fox", "email": "elena.fox@example.com", "segment": "Silver"}
+{"customer_id": 106, "first_name": "Farid", "last_name": "Khan", "email": "farid.khan@example.com", "segment": "Gold"}
+{"customer_id": 107, "first_name": "Gita", "last_name": "Nair", "email": "gita.nair@example.com", "segment": "Bronze"}
+{"customer_id": 108, "first_name": "Hiro", "last_name": "Tanaka", "email": "hiro.tanaka@example.com", "segment": "Silver"}

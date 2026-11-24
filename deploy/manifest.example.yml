@@ -1,0 +1,36 @@
+# Example DataVigil batch manifest — copy to /data/batch/manifest.yml on the
+# EFS share (or anywhere inside the container) and point the batch task at it.
+name: nightly-etl-validation
+parallelism: 4
+fail_fast: false
+
+jobs:
+  # 1. schema gate first — break early if the extract's schema drifted
+  - name: customers-schema-gate
+    type: gate
+    source_file: /data/landing/customers.csv
+    # pin_if_missing: true   # first run only — creates baseline v1
+
+  # 2. file -> staging-table reconciliation (1:1 with derived columns)
+  - name: customers-to-staging
+    type: pair
+    source_file: /data/landing/customers.csv
+    target_source: staging            # registered DB source (see README)
+    target_dataset: stg_customers
+    mapping:
+      cardinality: "1:1"
+      key_pairs: [{ src: customer_id, tgt: customer_id }]
+      columns:
+        - { src: customer_id, tgt: customer_id }
+        - { tgt: full_name, transform: "first + ' ' + last" }
+        - { tgt: order_total, transform: "qty * unit_price", tolerance: 0.01 }
+      aggregates:
+        - { column: order_total, op: sum, tolerance: 0.5 }
+
+  # 3. full audit of a registered source dataset, failing under score 80
+  - name: orders-audit
+    type: audit
+    source: staging
+    dataset: stg_orders
+    fail_under: 80
+    gate: true                        # also run its schema gate

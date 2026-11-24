@@ -1,0 +1,14 @@
+.git
+.venv
+.pytest_cache
+__pycache__
+*.pyc
+*.zip
+tmp_test
+tests
+docs
+deploy
+*.pdf
+.datavigil
+Dockerfile
+.dockerignore

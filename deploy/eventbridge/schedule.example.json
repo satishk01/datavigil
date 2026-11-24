@@ -1,0 +1,29 @@
+{
+  "Name": "datavigil-nightly-batch",
+  "ScheduleExpression": "cron(0 2 * * ? *)",
+  "ScheduleExpressionTimezone": "UTC",
+  "FlexibleTimeWindow": { "Mode": "OFF" },
+  "State": "ENABLED",
+  "Description": "Run the DataVigil batch manifest every night at 02:00 UTC",
+  "Target": {
+    "Arn": "arn:aws:ecs:{{REGION}}:{{ACCOUNT_ID}}:cluster/{{CLUSTER}}",
+    "RoleArn": "{{SCHEDULER_ROLE_ARN}}",
+    "EcsParameters": {
+      "TaskDefinitionArn": "{{TASKDEF_ARN}}",
+      "TaskCount": 1,
+      "LaunchType": "FARGATE",
+      "PlatformVersion": "LATEST",
+      "NetworkConfiguration": {
+        "awsvpcConfiguration": {
+          "Subnets": ["{{SUBNET_1}}", "{{SUBNET_2}}"],
+          "SecurityGroups": ["{{SECURITY_GROUP}}"],
+          "AssignPublicIp": "DISABLED"
+        }
+      }
+    },
+    "RetryPolicy": {
+      "MaximumRetryAttempts": 0,
+      "MaximumEventAgeInSeconds": 3600
+    }
+  }
+}

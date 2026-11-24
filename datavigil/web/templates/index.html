@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>DataVigil — Data Quality & Profiling</title>
+<link rel="stylesheet" href="/static/app.css"/>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo">◆</span> DataVigil</div>
+  <nav class="tabs">
+    <button class="tab active" data-view="profile">Profiling</button>
+    <button class="tab" data-view="rules">Rules &amp; Score</button>
+    <button class="tab" data-view="anomaly">Anomalies</button>
+    <button class="tab" data-view="reconcile">Reconcile</button>
+    <button class="tab" data-view="report">Audit &amp; Report</button>
+    <button class="tab" data-view="ask">Ask</button>
+  </nav>
+  <div class="right">
+    <span id="llm-badge" class="badge badge-muted" title="LLM status">LLM: …</span>
+    <button id="settings-btn" class="icon-btn" title="AI model settings">⚙</button>
+    <button id="theme-toggle" class="icon-btn" title="Toggle theme">◐</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="side-section">
+      <h3>Data source</h3>
+      <div class="field">
+        <label>Upload a file (CSV / text / Excel / Parquet / JSON)</label>
+        <input type="file" id="file-input" accept=".csv,.tsv,.txt,.dat,.xlsx,.xls,.xlsm,.parquet,.pq,.json,.jsonl,.ndjson,.fwf"/>
+        <input id="file-options" placeholder='reader options JSON (optional) — e.g. {"sep":"|"}'/>
+      </div>
+      <div class="divider">or register a local file / copybook</div>
+      <div class="field">
+        <input id="fs-name" placeholder="source name (e.g. landing)"/>
+        <input id="fs-path" placeholder="file or folder path — e.g. samples/custcopy.dat"/>
+        <input id="fs-options" placeholder='reader options JSON — e.g. {"sep":"|"}'/>
+        <input id="fs-copybook" placeholder="copybook file (IMS/COBOL only)"/>
+        <button id="fs-connect" class="btn">Register file source</button>
+      </div>
+      <div class="divider">or connect a database</div>
+      <div class="field">
+        <input id="db-name" placeholder="source name (e.g. warehouse)"/>
+        <select id="db-dialect">
+          <option value="aurora">Aurora PostgreSQL (AWS RDS)</option>
+          <option value="postgres">PostgreSQL</option>
+          <option value="mysql">MySQL</option>
+          <option value="sqlserver">SQL Server</option>
+          <option value="oracle">Oracle</option>
+          <option value="snowflake">Snowflake</option>
+          <option value="sqlite">SQLite</option>
+        </select>
+        <input id="db-url" placeholder="full SQLAlchemy URL (optional)"/>
+        <div class="row">
+          <input id="db-host" placeholder="host"/>
+          <input id="db-port" placeholder="port" style="max-width:90px"/>
+        </div>
+        <div class="row">
+          <input id="db-user" placeholder="user"/>
+          <input id="db-pass" type="password" placeholder="password"/>
+        </div>
+        <input id="db-database" placeholder="database"/>
+        <input id="db-schema" placeholder="schema (optional)"/>
+        <label class="chk"><input type="checkbox" id="db-iam"/> AWS IAM authentication (no password)</label>
+        <input id="db-region" placeholder="AWS region (e.g. us-east-1)" class="hidden"/>
+        <button id="db-connect" class="btn">Connect</button>
+      </div>
+      <div class="divider">or Aurora via MCP (AWS Data API / pgwire)</div>
+      <div class="field">
+        <input id="mcp-name" placeholder="source name (e.g. aurora-mcp)"/>
+        <select id="mcp-method">
+          <option value="rdsapi">Data API — no direct DB access needed (provisioned + serverless; must be enabled on the cluster)</option>
+          <option value="pgwire">pgwire — direct connection via MCP (needs host + port access)</option>
+        </select>
+        <input id="mcp-cluster-arn" placeholder="Aurora cluster ARN or identifier"/>
+        <input id="mcp-endpoint" class="hidden" placeholder="DB endpoint (host) — pgwire only"/>
+        <input id="mcp-secret-arn" placeholder="Secrets Manager ARN (DB creds)"/>
+        <div class="row">
+          <input id="mcp-database" placeholder="database"/>
+          <input id="mcp-region" placeholder="region" style="max-width:110px"/>
+        </div>
+        <input id="mcp-schema" placeholder="schema (optional, default public)"/>
+        <button id="mcp-connect" class="btn">Connect via AWS (MCP)</button>
+        <div id="mcp-note" class="muted tiny hidden">Not installed here: needs the 'mcp' package plus 'uv' (uvx) or 'pip install awslabs.postgres-mcp-server'.</div>
+      </div>
+    </div>
+
+    <div class="side-section">
+      <h3>Datasets</h3>
+      <select id="source-select"></select>
+      <select id="dataset-select" size="8" class="dataset-list"></select>
+      <button id="src-remove" class="btn ghost" style="margin-top:6px"
+              title="Remove the selected source and its datasets">Remove source</button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div id="empty-state" class="empty">
+      <h2>Select or upload a dataset to begin</h2>
+      <p>DataVigil profiles your data, suggests quality rules, scores each run, and
+         flags anomalies — all running locally.</p>
+    </div>
+
+    <!-- PROFILE VIEW -->
+    <section id="view-profile" class="view hidden">
+      <div class="view-head">
+        <h2>Profile <span id="prof-dataset" class="muted"></span></h2>
+        <div>
+          <label class="chk"><input type="checkbox" id="insights-chk"/> AI insights</label>
+          <button id="btn-profile" class="btn">Profile dataset</button>
+        </div>
+      </div>
+      <div id="prof-summary" class="cards"></div>
+      <div id="prof-insight" class="insight hidden"></div>
+      <div id="prof-columns" class="table-wrap"></div>
+      <div id="prof-corr" class="table-wrap"></div>
+    </section>
+
+    <!-- RULES VIEW -->
+    <section id="view-rules" class="view hidden">
+      <div class="view-head">
+        <h2>Rules &amp; Score</h2>
+        <div>
+          <button id="btn-suggest" class="btn ghost">Suggest rules</button>
+          <button id="btn-analyze" class="btn ghost">Explain failures (AI)</button>
+          <button id="btn-run" class="btn">Run &amp; score</button>
+        </div>
+      </div>
+      <div class="nl-box">
+        <input id="nl-input" placeholder="Describe a check in plain English — e.g. 'unit_cost must be positive and list_price at least the unit cost'"/>
+        <button id="btn-nl" class="btn">Add via AI</button>
+      </div>
+      <div id="ai-analysis" class="insight hidden"></div>
+      <div id="ai-issues" class="table-wrap hidden"></div>
+      <div class="score-row">
+        <div class="gauge-wrap"><div id="gauge"></div><div class="gauge-label">DQ Score</div></div>
+        <div id="dim-scores" class="dim-scores"></div>
+      </div>
+      <div id="rules-table" class="table-wrap"></div>
+      <div id="run-results" class="table-wrap"></div>
+    </section>
+
+    <!-- ANOMALY VIEW -->
+    <section id="view-anomaly" class="view hidden">
+      <div class="view-head">
+        <h2>Anomalies</h2>
+        <button id="btn-anomaly" class="btn">Detect anomalies</button>
+      </div>
+      <div id="anomaly-summary" class="cards"></div>
+      <div id="anomaly-table" class="table-wrap"></div>
+    </section>
+
+    <!-- RECONCILE VIEW -->
+    <section id="view-reconcile" class="view hidden">
+      <div class="view-head">
+        <h2>Reconcile — source → target</h2>
+        <div>
+          <select id="map-saved"><option value="">saved mappings…</option></select>
+          <button id="btn-map-del" class="btn ghost" title="Delete the selected saved mapping">Delete</button>
+          <button id="btn-compare" class="btn ghost" title="Diff the two datasets' schemas — no mapping needed">Compare schemas</button>
+          <button id="btn-map-suggest" class="btn ghost">Suggest mapping</button>
+          <button id="btn-map-save" class="btn ghost">Save mapping</button>
+          <button id="btn-map-run" class="btn">Run reconciliation</button>
+        </div>
+      </div>
+      <div class="row" style="gap:14px;flex-wrap:wrap">
+        <div class="field"><label>Source A (from)</label>
+          <select id="map-src-a"></select>
+          <select id="map-ds-a" size="4" class="dataset-list"></select>
+        </div>
+        <div class="field"><label>Source B (to)</label>
+          <select id="map-src-b"></select>
+          <select id="map-ds-b" size="4" class="dataset-list"></select>
+        </div>
+        <div class="field" style="flex:1;min-width:320px"><label>Mapping spec (JSON)</label>
+          <textarea id="map-spec" rows="9" class="mono"
+            placeholder='{"cardinality":"1:1","key_pairs":[{"src":"id","tgt":"id"}],"columns":[{"src":"a","tgt":"b"},{"tgt":"full_name","transform":"first + \' \' + last"}],"aggregates":[{"column":"amount","op":"sum","tolerance":0.01}]}'></textarea>
+        </div>
+      </div>
+      <div id="cmp-result" class="table-wrap"></div>
+      <div id="map-result" class="table-wrap"></div>
+
+      <div class="view-head" style="margin-top:24px">
+        <h3>Schema gate — break the batch on schema drift</h3>
+        <div>
+          <button id="btn-gate-pin" class="btn ghost">Pin baseline</button>
+          <button id="btn-gate-run" class="btn">Run gate</button>
+        </div>
+      </div>
+      <p class="muted">Pin the selected dataset's schema as a baseline version,
+        then <b>Run gate</b> after each new extract — a removed column or type
+        change (e.g. customer_id string → int) fails the gate. The same check
+        runs from the CLI (<span class="mono">datavigil gate FILE</span>) for
+        batch jobs.</p>
+      <div id="gate-versions" class="muted tiny"></div>
+      <div id="gate-result" class="table-wrap"></div>
+
+      <div class="view-head" style="margin-top:24px">
+        <h3>Batch — run a manifest</h3>
+        <button id="btn-batch" class="btn">Run batch</button>
+      </div>
+      <p class="muted">Run several checks at once from a manifest — the same
+        job list the CLI (<span class="mono">datavigil batch manifest.yml</span>)
+        and ECS runs execute. Paste a JSON manifest below (YAML also works
+        from the CLI); <span class="mono">source_file</span> /
+        <span class="mono">target_file</span> auto-register file sources.</p>
+      <textarea id="batch-spec" rows="9" class="mono"></textarea>
+      <div id="batch-result" class="table-wrap"></div>
+    </section>
+
+    <!-- REPORT VIEW -->
+    <section id="view-report" class="view hidden">
+      <div class="view-head">
+        <h2>Audit &amp; Report</h2>
+        <div>
+          <button id="btn-audit" class="btn">Audit this table</button>
+          <button id="btn-audit-schema" class="btn">Audit whole schema</button>
+          <button id="btn-docx" class="btn ghost">Download DOCX</button>
+          <button id="btn-pdf" class="btn ghost">Download PDF</button>
+        </div>
+      </div>
+      <p class="muted"><b>Audit this table</b> profiles the selected dataset,
+        runs the quality checks, finds anomalies and explains the failures —
+        then export the result as a DOCX or PDF report.
+        <b>Audit whole schema</b> does this for every table in the selected
+        source (no dataset needed) and produces one consolidated report.</p>
+      <div id="audit-summary" class="cards"></div>
+      <div id="audit-analysis" class="insight hidden"></div>
+      <div id="audit-issues" class="table-wrap"></div>
+      <div id="history-table" class="table-wrap"></div>
+
+      <div id="schema-audit" class="hidden">
+        <div class="view-head" style="margin-top:24px">
+          <h3>Schema audit — all tables</h3>
+          <div>
+            <button id="btn-schema-docx" class="btn ghost">Download schema DOCX</button>
+            <button id="btn-schema-pdf" class="btn ghost">Download schema PDF</button>
+          </div>
+        </div>
+        <div id="schema-summary" class="cards"></div>
+        <div id="schema-tables" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <!-- ASK VIEW -->
+    <section id="view-ask" class="view hidden">
+      <div class="view-head"><h2>Ask about your data</h2></div>
+      <div id="chat-log" class="chat-log"></div>
+      <div class="nl-box">
+        <input id="ask-input" placeholder="e.g. Which columns have the worst data quality and why?"/>
+        <button id="btn-ask" class="btn">Ask</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- LLM SETTINGS MODAL -->
+<div id="settings-modal" class="modal hidden">
+  <div class="modal-card">
+    <h3>AI model settings</h3>
+    <p class="muted tiny">Used for “Add via AI”, “Ask”, AI insights and failure
+      explanations. Changes are saved for next time.</p>
+    <label class="mfield">Provider
+      <select id="llm-provider">
+        <option value="bedrock">AWS Bedrock (Nova / Claude / Llama…)</option>
+        <option value="ollama">Ollama (local)</option>
+        <option value="openai">OpenAI</option>
+        <option value="azure_openai">Azure OpenAI</option>
+        <option value="none">Disabled</option>
+      </select>
+    </label>
+    <label class="mfield">Model
+      <input id="llm-model" placeholder="us.amazon.nova-pro-v1:0"/>
+    </label>
+    <label class="mfield" id="f-llm-region">AWS region
+      <input id="llm-region" placeholder="us-east-1"/>
+    </label>
+    <label class="mfield" id="f-llm-aws-auth">AWS authentication
+      <select id="llm-aws-auth">
+        <option value="profile">AWS profile / default credential chain</option>
+        <option value="keys">Long-term keys (access key + secret)</option>
+        <option value="keys_session">Short-term keys (+ session token)</option>
+        <option value="api_key">Bedrock API key (bearer token)</option>
+      </select>
+    </label>
+    <label class="mfield" id="f-llm-aws-profile">AWS profile (optional)
+      <input id="llm-aws-profile"/>
+    </label>
+    <label class="mfield" id="f-llm-aws-access">Access key ID
+      <input id="llm-aws-access" placeholder="AKIA…" autocomplete="off"/>
+    </label>
+    <label class="mfield" id="f-llm-aws-secret">Secret access key
+      <input id="llm-aws-secret" type="password" autocomplete="off"
+             placeholder="leave blank to keep current"/>
+    </label>
+    <label class="mfield" id="f-llm-aws-session">Session token
+      <input id="llm-aws-session" type="password" autocomplete="off"
+             placeholder="leave blank to keep current"/>
+    </label>
+    <label class="mfield" id="f-llm-aws-apikey">Bedrock API key
+      <input id="llm-aws-apikey" type="password" autocomplete="off"
+             placeholder="leave blank to keep current"/>
+    </label>
+    <label class="mfield" id="f-llm-base-url">Base URL (Ollama / OpenAI)
+      <input id="llm-base-url"/>
+    </label>
+    <label class="mfield" id="f-llm-api-key">API key (leave blank to keep current)
+      <input id="llm-api-key" type="password" autocomplete="off"/>
+    </label>
+    <label class="chk"><input type="checkbox" id="llm-enabled" checked/> AI features enabled</label>
+    <div class="row" style="margin-top:14px">
+      <button id="llm-save" class="btn">Save</button>
+      <button id="llm-cancel" class="btn ghost">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

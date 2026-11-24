@@ -1,0 +1,9 @@
+customer_id,first_name,last_name,email,segment
+101,Asha,Rao,asha.rao@example.com,Gold
+102,Biju,Mathew,biju.mathew@example.com,Silver
+103,Cara,Diaz,cara.diaz@example.com,Gold
+104,Dev,Patel,dev.patel@example.com,Bronze
+105,Elena,Fox,elena.fox@example.com,Silver
+106,Farid,Khan,farid.khan@example.com,Gold
+107,Gita,Nair,gita.nair@example.com,Bronze
+108,Hiro,Tanaka,hiro.tanaka@example.com,Silver

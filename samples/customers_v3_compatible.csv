@@ -1,0 +1,9 @@
+customer_id,first_name,last_name,email,segment,loyalty_tier
+101,Asha,Rao,asha.rao@example.com,Gold,T3
+102,Biju,Mathew,biju.mathew@example.com,Silver,T1
+103,Cara,Diaz,cara.diaz@example.com,Gold,T2
+104,Dev,Patel,dev.patel@example.com,Bronze,T3
+105,Elena,Fox,elena.fox@example.com,Silver,T1
+106,Farid,Khan,farid.khan@example.com,Gold,T2
+107,Gita,Nair,gita.nair@example.com,Bronze,T3
+108,Hiro,Tanaka,hiro.tanaka@example.com,Silver,T1

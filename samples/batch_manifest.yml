@@ -1,0 +1,69 @@
+# DataVigil batch manifest — runs the whole validation pack in one command:
+#   datavigil batch samples/batch_manifest.yml
+# Register the file sources first (one-time, e.g. via the UI upload or API),
+# or rely on source_file entries below which self-register.
+name: sample-validation-pack
+parallelism: 4
+fail_fast: false
+
+jobs:
+  # 1. Schema gate on the customers extract (creates baseline v1 first run)
+  - name: customers-gate
+    type: gate
+    source_file: samples/customers_src.csv
+    pin_if_missing: true
+
+  # 2. File -> staging reconciliation, 1:1, derived + aggregate checks
+  - name: customers-to-stg
+    type: pair
+    source_file: samples/customers_src.csv
+    target_file: samples/stg_customers.csv
+    mapping:
+      cardinality: "1:1"
+      key_pairs: [{ src: customer_id, tgt: customer_id }]
+      columns:
+        - { tgt: full_name, transform: "first_name + ' ' + last_name" }
+        - { src: email, tgt: email }
+        - { src: segment, tgt: segment }
+
+  # 3. Orders reconciliation with a derived calc + sum() aggregate
+  - name: orders-to-stg
+    type: pair
+    source_file: samples/orders_src.csv
+    target_file: samples/stg_orders.csv
+    mapping:
+      cardinality: "1:1"
+      key_pairs: [{ src: order_id, tgt: order_id }]
+      columns:
+        - { tgt: order_total, transform: "qty * unit_price", tolerance: 0.01 }
+        - { src: status, tgt: status }
+      aggregates:
+        - { src: order_total, tgt: order_total, op: sum, tolerance: 0.5 }
+
+  # 4. 1:N fanout orders -> order lines
+  - name: orders-to-lines
+    type: pair
+    source_file: samples/orders_src.csv
+    target_file: samples/order_lines.csv
+    mapping:
+      cardinality: "1:N"
+      key_pairs: [{ src: order_id, tgt: order_id }]
+      columns: []
+
+  # 5. N:1 aggregation txns -> daily summary
+  - name: txn-to-daily
+    type: pair
+    source_file: samples/txn.csv
+    target_file: samples/daily_summary.csv
+    mapping:
+      cardinality: "N:1"
+      key_pairs: [{ src: txn_date, tgt: txn_date }]
+      columns: []
+      aggregates:
+        - { src: amount, tgt: total_amount, op: sum, tolerance: 0.01 }
+
+  # 6. Full audit of the big profiling file
+  - name: parts-audit
+    type: audit
+    source_file: samples/parts_inventory.csv
+    fail_under: 50

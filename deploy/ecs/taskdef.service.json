@@ -1,0 +1,47 @@
+{
+  "family": "datavigil",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "{{EXECUTION_ROLE_ARN}}",
+  "taskRoleArn": "{{TASK_ROLE_ARN}}",
+  "containerDefinitions": [
+    {
+      "name": "datavigil",
+      "image": "{{IMAGE_URI}}",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 8000, "protocol": "tcp" }
+      ],
+      "environment": [
+        { "name": "DATAVIGIL_HOME", "value": "/data" },
+        { "name": "DATAVIGIL_LLM_PROVIDER", "value": "{{LLM_PROVIDER}}" },
+        { "name": "DATAVIGIL_LLM_MODEL", "value": "{{LLM_MODEL}}" },
+        { "name": "DATAVIGIL_LLM_REGION", "value": "{{REGION}}" },
+        { "name": "AWS_REGION", "value": "{{REGION}}" }
+      ],
+      "mountPoints": [
+        { "sourceVolume": "dvstate", "containerPath": "/data", "readOnly": false }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "{{LOG_GROUP}}",
+          "awslogs-region": "{{REGION}}",
+          "awslogs-stream-prefix": "service"
+        }
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "name": "dvstate",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "{{EFS_ID}}",
+        "rootDirectory": "/",
+        "transitEncryption": "ENABLED"
+      }
+    }
+  ]
+}

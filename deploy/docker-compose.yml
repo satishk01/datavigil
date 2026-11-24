@@ -1,0 +1,27 @@
+# Easiest way to run DataVigil locally — one command:
+#   docker compose -f deploy/docker-compose.yml up --build
+# then open http://localhost:8000
+#
+# To run the sample batch instead of the dashboard:
+#   docker compose -f deploy/docker-compose.yml run --rm datavigil \
+#       batch /app/samples/batch_manifest.yml
+services:
+  datavigil:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: datavigil:local
+    ports:
+      - "8000:8000"
+    volumes:
+      - datavigil-state:/data        # persists sources/rules/mappings between runs
+    environment:
+      # uncomment + fill to enable AI features inside the container
+      # DATAVIGIL_LLM_PROVIDER: bedrock
+      # DATAVIGIL_LLM_MODEL: us.amazon.nova-pro-v1:0
+      # DATAVIGIL_LLM_REGION: us-east-1
+      DATAVIGIL_LLM_PROVIDER: none
+    restart: unless-stopped
+
+volumes:
+  datavigil-state:
